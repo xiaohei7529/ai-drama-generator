@@ -1,0 +1,47 @@
+appId: com.ai.drama.generator
+productName: AI 短剧生成器
+copyright: Copyright © 2026
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - package.json
+  - scripts/**/*
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: AI 短剧生成器
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+
+mac:
+  target: dmg
+  icon: build/icon.icns
+  category: public.app-category.productivity
+
+linux:
+  target:
+    - deb
+    - AppImage
+  icon: build/icon.png
+  category: Video
+  maintainer: xiaohei7529@gmail.com
+
+publish:
+  provider: github
+  owner: xiaohei7529
+  repo: ai-drama-generator
