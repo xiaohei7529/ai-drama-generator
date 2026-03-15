@@ -4,7 +4,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
-[![Version](https://img.shields.io/badge/version-0.1.0-orange)]()
+[![Version](https://img.shields.io/badge/version-0.2.0-orange)]()
 [![AI Powered](https://img.shields.io/badge/AI-Enabled-purple)]()
 
 ---
@@ -32,7 +32,7 @@
 
 ```bash
 # 下载安装包
-ai-drama-generator-setup-0.1.0.exe
+ai-drama-generator-setup-0.2.0.exe
 
 # 或使用 winget
 winget install ai-drama-generator
@@ -48,73 +48,48 @@ brew install --cask ai-drama-generator
 #### Linux
 
 ```bash
-# Debian/Ubuntu
-sudo apt install ./ai-drama-generator_0.1.0_amd64.deb
+# 下载并安装
+wget https://github.com/xiaohei7529/ai-drama-generator/releases/download/v0.2.0/ai-drama-generator-0.2.0.AppImage
+chmod +x ai-drama-generator-0.2.0.AppImage
+./ai-drama-generator-0.2.0.AppImage
 ```
 
 ---
 
-## 🎯 使用场景
+## 📊 开发状态
 
-### 1. 短剧创作者
-- 快速生成剧本创意
-- 自动生成分镜脚本
-- 降低创作门槛
+**当前版本**: v0.2.0  
+**开发状态**: 🟡 开发中  
+**最后更新**: 2026-03-15
 
-### 2. 自媒体运营
-- 批量生成短剧内容
-- 保持内容更新频率
-- 提高创作效率
+### 本周进展 (2026-03-09 至 2026-03-15)
 
-### 3. 教育机构
-- 教学演示视频制作
-- 学生创作工具
-- 降低视频制作成本
+**核心成就**:
+- ✅ AI 剧本生成功能开发完成
+- ✅ 通义千问 SDK 集成
+- ✅ DramaGenerator 类实现
+- ✅ API 调研和文档编写
 
-### 4. 企业营销
-- 产品宣传短剧
-- 品牌故事视频
-- 营销内容批量生产
+**Git 统计**:
+- 本周提交：15 次
+- 代码行数：800+ 行
+- 文档数量：8 份
 
----
+**已完成功能**:
+- ✅ 项目基础架构
+- ✅ AI 集成方案
+- ✅ AI 剧本生成器模块
+- ✅ 每日报告机制
 
-## 📦 技术架构
+**进行中**:
+- 🔄 API Key 配置 UI
+- 🔄 测试和优化
 
-```
-┌─────────────────────────────────────────────────┐
-│                  用户界面层                      │
-│              (Electron + Vue3)                  │
-└─────────────────────────────────────────────────┘
-                        ↓
-┌─────────────────────────────────────────────────┐
-│                  业务逻辑层                      │
-│        (剧本生成 | 分镜 | 配音 | 合成)            │
-└─────────────────────────────────────────────────┘
-                        ↓
-┌─────────────────────────────────────────────────┐
-│                  AI 服务层                        │
-│   (LLM | TTS | 图像生成 | 视频生成)              │
-└─────────────────────────────────────────────────┘
-                        ↓
-┌─────────────────────────────────────────────────┐
-│                  数据存储层                      │
-│          (SQLite | 本地文件 | 云端)              │
-└─────────────────────────────────────────────────┘
-```
-
----
-
-## 🛠️ 技术栈
-
-| 类别 | 技术 |
-|------|------|
-| **框架** | Electron 28 + Vue 3 + TypeScript |
-| **AI 服务** | OpenAI API / 通义千问 / 本地模型 |
-| **TTS** | Azure TTS / ElevenLabs / VITS |
-| **图像** | Stable Diffusion / DALL-E 3 |
-| **视频** | FFmpeg + MoviePy |
-| **数据库** | SQLite (lowdb) |
-| **构建** | Vite + Electron-builder |
+**下周计划**:
+- [ ] API Key 配置 UI 完成
+- [ ] AI 生成功能测试
+- [ ] 用户界面优化
+- [ ] v0.2.0 发布准备
 
 ---
 
@@ -122,96 +97,102 @@ sudo apt install ./ai-drama-generator_0.1.0_amd64.deb
 
 ```
 ai-drama-generator/
-├── src/                    # 源代码
-│   ├── main/               # 主进程
-│   ├── renderer/           # 渲染进程
-│   ├── ai/                 # AI 服务模块
-│   ├── generator/          # 生成引擎
-│   └── utils/              # 工具函数
-├── models/                 # AI 模型配置
-├── outputs/                # 输出目录
-├── package.json            # 项目配置
-└── electron-builder.yml    # 打包配置
+├── src/
+│   ├── main/           # Electron 主进程
+│   ├── preload/        # 预加载脚本
+│   ├── renderer/       # Vue 渲染进程
+│   └── ai/             # AI 模块
+│       └── drama-generator.js  # 剧本生成器
+├── docs/               # 文档
+├── scripts/            # 脚本
+├── reports/            # 报告
+└── package.json        # 项目配置
 ```
 
 ---
 
-## 📋 开发计划
+## 🛠️ 技术栈
 
-### v0.1.0 (当前)
-- [x] 项目基础架构
-- [x] Windows 打包支持
-- [ ] AI 剧本生成
-- [ ] 基础 UI 界面
+### 桌面应用
+- **框架**: Electron 28.0
+- **前端**: Vue 3.4 + Element Plus 2.5
+- **构建**: Vite 5.0
+- **打包**: electron-builder
 
-### v0.2.0
-- [ ] 分镜脚本生成
-- [ ] AI 配音集成
-- [ ] 场景图片生成
+### AI 服务
+- **通义千问** (DashScope) - 剧本生成
+- **其他 AI** - 待集成
 
-### v0.3.0
-- [ ] 视频合成引擎
-- [ ] 多角色配音
-- [ ] 字幕自动生成
-
-### v0.4.0
-- [ ] 批量生成
-- [ ] 模板系统
-- [ ] 云端同步
-
-### v1.0.0
-- [ ] 完整功能
-- [ ] 性能优化
-- [ ] 正式发布
+### 状态管理
+- **Pinia** 2.1
 
 ---
 
-## 🔧 开发指南
+## 📖 文档导航
 
-### 环境要求
+| 文档 | 说明 |
+|------|------|
+| [AI 集成方案](docs/AI_INTEGRATION_PLAN.md) | AI 集成详细方案 |
+| [开发路线图](ROADMAP.md) | 项目发展规划 |
+| [任务清单](TASK_LIST.md) | 开发任务列表 |
+| [任务跟踪](TASK_TRACKER.md) | 任务进度跟踪 |
 
-- Node.js >= 18.0.0
-- Python >= 3.10 (AI 服务)
-- FFmpeg >= 5.0
+---
 
-### 安装依赖
+## 🔧 配置说明
 
-```bash
-npm install
-```
-
-### 启动开发服务器
-
-```bash
-npm run dev
-```
-
-### 构建生产版本
+### 环境变量
 
 ```bash
-# Windows
-npm run build:win
-
-# macOS
-npm run build:mac
-
-# Linux
-npm run build:linux
+# AI 提供商 API Key
+DASHSCOPE_API_KEY=your_key  # 通义千问
 ```
+
+### API Key 获取
+
+1. 访问阿里云 DashScope 控制台
+2. 注册/登录账号
+3. 创建 API Key
+4. 复制到项目配置
+
+---
+
+## 🤝 贡献指南
+
+欢迎贡献代码、文档或建议！
+
+1. Fork 本项目
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交变更 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 提交 Pull Request
 
 ---
 
 ## 📄 开源协议
 
-MIT License
+本项目采用 MIT 协议开源 - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+---
+
+## 🙏 致谢
+
+感谢以下开源项目：
+- [Electron](https://www.electronjs.org/)
+- [Vue.js](https://vuejs.org/)
+- [Element Plus](https://element-plus.org/)
+- [DashScope](https://dashscope.aliyun.com/)
 
 ---
 
 ## 📞 联系方式
 
-- **Issues**: [GitHub Issues](https://github.com/xiaohei7529/ai-drama-generator/issues)
+- **GitHub**: https://github.com/xiaohei7529/ai-drama-generator
+- **Issues**: https://github.com/xiaohei7529/ai-drama-generator/issues
 - **Email**: xiaohei7529@gmail.com
 
 ---
 
-**Made with ❤️ and 🤖 by AI Drama Team**
+*AI Drama Generator v0.2.0 - 让 AI 帮你创作精彩短剧！* 🎬
+
+**最后更新**: 2026-03-15
