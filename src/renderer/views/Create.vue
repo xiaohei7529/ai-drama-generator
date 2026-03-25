@@ -1,152 +1,198 @@
 <template>
   <div class="create">
     <h2>✍️ 创作短剧剧本</h2>
-    
-    <!-- 提示 -->
+
+    <!-- 未配置 API Key 提示 -->
     <el-alert
-      v-if="!hasApiKey"
+      v-if="!settingsStore.hasApiKey(form.provider)"
       title="请先配置 API Key"
       type="warning"
-      description="请在设置页面配置 AI 提供商的 API Key 后才能使用生成功能"
+      description="请在设置页面配置 AI 提供商的 API Key 后才能使用生成功能。"
       show-icon
-      closable
+      :closable="false"
+      class="mb-20"
     >
       <template #default>
-        <el-button type="primary" size="small" @click="$router.push('/settings')">
+        <el-button
+          type="primary"
+          size="small"
+          @click="$router.push('/settings')"
+        >
           前往设置
         </el-button>
       </template>
     </el-alert>
-    
-    <el-card class="create-card">
-      <el-form :model="form" label-width="120px" :disabled="isGenerating">
-        <!-- 主题 -->
-        <el-form-item label="剧本主题" required :error="errors.theme">
-          <el-input 
-            v-model="form.theme" 
+
+    <!-- 表单 -->
+    <el-card class="form-card">
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="120px"
+        :disabled="isGenerating"
+      >
+        <el-form-item
+          label="剧本主题"
+          prop="theme"
+        >
+          <el-input
+            v-model="form.theme"
             placeholder="例如：霸道总裁爱上我、逆袭人生"
             maxlength="100"
             show-word-limit
-            :disabled="isGenerating"
           />
         </el-form-item>
-        
-        <!-- 风格 -->
-        <el-form-item label="剧本风格" required :error="errors.style">
-          <el-select 
-            v-model="form.style" 
+
+        <el-form-item
+          label="剧本风格"
+          prop="style"
+        >
+          <el-select
+            v-model="form.style"
             placeholder="请选择风格"
-            :disabled="isGenerating"
             style="width: 100%"
           >
-            <el-option label="都市" value="都市" />
-            <el-option label="言情" value="言情" />
-            <el-option label="逆袭" value="逆袭" />
-            <el-option label="战神" value="战神" />
-            <el-option label="神医" value="神医" />
-            <el-option label="萌宝" value="萌宝" />
-            <el-option label="古装" value="古装" />
+            <el-option
+              v-for="s in STYLES"
+              :key="s"
+              :label="s"
+              :value="s"
+            />
           </el-select>
         </el-form-item>
-        
-        <!-- 集数 -->
-        <el-form-item label="集数" required>
-          <el-input-number 
-            v-model="form.episodes" 
-            :min="1" 
-            :max="100" 
-            :step="1"
-            :disabled="isGenerating"
+
+        <el-form-item label="集数">
+          <el-input-number
+            v-model="form.episodes"
+            :min="1"
+            :max="100"
           />
-          <span class="help-text"> 集 (建议 1-10 集)</span>
+          <span class="help-text">集（建议 1–10）</span>
         </el-form-item>
-        
-        <!-- 每集时长 -->
-        <el-form-item label="每集时长" required>
-          <el-input-number 
-            v-model="form.duration" 
-            :min="1" 
-            :max="10" 
-            :step="1"
-            :disabled="isGenerating"
+
+        <el-form-item label="每集时长">
+          <el-input-number
+            v-model="form.duration"
+            :min="1"
+            :max="30"
           />
-          <span class="help-text"> 分钟/集</span>
+          <span class="help-text">分钟/集</span>
         </el-form-item>
-        
-        <!-- AI 提供商 -->
+
         <el-form-item label="AI 提供商">
-          <el-select 
-            v-model="form.provider" 
-            placeholder="请选择"
-            :disabled="isGenerating"
+          <el-select
+            v-model="form.provider"
             style="width: 100%"
           >
-            <el-option label="通义千问" value="dashscope" />
-            <el-option label="文心一言" value="ernie" />
-            <el-option label="讯飞星火" value="iflytek" />
+            <el-option
+              label="通义千问"
+              value="dashscope"
+            />
+            <el-option
+              label="文心一言"
+              value="ernie"
+            />
+            <el-option
+              label="讯飞星火"
+              value="iflytek"
+            />
           </el-select>
         </el-form-item>
-        
-        <!-- 生成按钮 -->
+
         <el-form-item>
-          <el-button 
-            type="primary" 
-            size="large" 
-            @click="generateDrama"
+          <el-button
+            type="primary"
+            size="large"
             :loading="isGenerating"
-            :disabled="!hasApiKey"
+            :disabled="!settingsStore.hasApiKey(form.provider)"
+            @click="handleGenerate"
           >
             {{ isGenerating ? '生成中...' : '开始生成' }}
+          </el-button>
+          <el-button
+            v-if="result"
+            @click="resetResult"
+          >
+            重新开始
           </el-button>
         </el-form-item>
       </el-form>
     </el-card>
-    
-    <!-- 加载状态 -->
-    <el-card v-if="isGenerating" class="loading-card">
-      <div class="loading-content">
-        <el-progress 
-          :percentage="loadingProgress" 
-          :format="loadingFormat"
-          :stroke-width="20"
-          :status="loadingProgress === 100 ? 'success' : undefined"
+
+    <!-- 进度条 -->
+    <el-card
+      v-if="isGenerating"
+      class="progress-card"
+    >
+      <div class="progress-content">
+        <el-progress
+          :percentage="Math.round(loadingProgress)"
+          :stroke-width="18"
+          :status="loadingProgress >= 100 ? 'success' : undefined"
         />
-        <p class="loading-text">{{ loadingText }}</p>
+        <p class="progress-text">
+          {{ progressText }}
+        </p>
       </div>
     </el-card>
-    
+
     <!-- 错误提示 -->
     <el-alert
-      v-if="error"
-      :title="errorTitle"
-      :description="errorMessage"
+      v-if="errorMsg"
+      title="生成失败"
+      :description="errorMsg"
       type="error"
       show-icon
       closable
+      class="mb-20"
+      @close="errorMsg = ''"
     >
       <template #default>
-        <el-button type="primary" size="small" @click="retryGenerate">重试</el-button>
+        <el-button
+          type="primary"
+          size="small"
+          @click="handleGenerate"
+        >
+          重试
+        </el-button>
       </template>
     </el-alert>
-    
+
     <!-- 生成结果 -->
-    <el-card v-if="result && !error" class="result-card">
+    <el-card
+      v-if="result && !errorMsg"
+      class="result-card"
+    >
       <template #header>
         <div class="result-header">
           <span>📜 生成结果</span>
           <div class="header-actions">
-            <el-button size="small" @click="copyResult">复制</el-button>
-            <el-button size="small" @click="saveToHistory">保存</el-button>
+            <el-button
+              size="small"
+              @click="copyResult"
+            >
+              复制
+            </el-button>
+            <el-button
+              size="small"
+              type="success"
+              @click="exportResult"
+            >
+              导出
+            </el-button>
           </div>
         </div>
       </template>
-      
-      <div class="result-content">
+
+      <div class="result-body">
         <pre>{{ result.content }}</pre>
       </div>
-      
-      <div class="result-info">
-        <el-tag size="small">{{ result.model }}</el-tag>
+
+      <div class="result-meta">
+        <el-tag size="small">
+          {{ result.model }}
+        </el-tag>
         <span class="time">{{ formatTime(result.timestamp) }}</span>
       </div>
     </el-card>
@@ -154,198 +200,161 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useSettingsStore } from '../stores/index.js'
+import { useHistoryStore } from '../stores/index.js'
+import { batchExport, copyToClipboard } from '../utils/export.js'
 import DramaGenerator from '../../ai/drama-generator.js'
 
-// 表单数据
+const STYLES = ['都市', '言情', '逆袭', '战神', '神医', '萌宝', '古装', '悬疑', '喜剧']
+const PROGRESS_TEXTS = [
+  '正在思考剧情方向...',
+  '正在构建人物关系...',
+  '正在设计情节冲突...',
+  '正在编写精彩台词...',
+  '正在完善细节...',
+  '即将完成，稍候...',
+]
+
+const settingsStore = useSettingsStore()
+const historyStore  = useHistoryStore()
+const formRef = ref(null)
+
 const form = reactive({
   theme: '',
   style: '',
   episodes: 5,
   duration: 2,
-  provider: 'dashscope'
+  provider: 'dashscope',
 })
 
-// 错误信息
-const errors = reactive({
-  theme: '',
-  style: ''
-})
+const rules = {
+  theme: [{ required: true, message: '请输入剧本主题', trigger: 'blur' }],
+  style: [{ required: true, message: '请选择剧本风格', trigger: 'change' }],
+}
 
-// 生成状态
-const isGenerating = ref(false)
+const isGenerating    = ref(false)
 const loadingProgress = ref(0)
-const loadingText = ref('正在思考中...')
-const result = ref(null)
-const error = ref(false)
-const errorTitle = ref('')
-const errorMessage = ref('')
+const progressText    = ref(PROGRESS_TEXTS[0])
+const result          = ref(null)
+const errorMsg        = ref('')
 
-// 检查 API Key
-const hasApiKey = computed(() => {
-  const settings = localStorage.getItem('ai-drama-settings')
-  if (!settings) return false
-  
-  const parsed = JSON.parse(settings)
-  switch(form.provider) {
-    case 'dashscope':
-      return !!parsed.dashscopeApiKey
-    case 'ernie':
-      return !!parsed.ernieApiKey
-    case 'iflytek':
-      return !!parsed.iflytekApiKey
-    default:
-      return !!parsed.dashscopeApiKey
+let progressTimer = null
+
+onMounted(async () => {
+  await settingsStore.load()
+  form.provider = settingsStore.defaultProvider
+
+  // 若从历史记录页跳转过来，预填表单
+  const regenerate = localStorage.getItem('ai-drama-regenerate')
+  if (regenerate) {
+    try {
+      const item = JSON.parse(regenerate)
+      form.theme    = item.theme    ?? form.theme
+      form.style    = item.style    ?? form.style
+      form.episodes = item.episodes ?? form.episodes
+      form.duration = item.duration ?? form.duration
+      form.provider = item.provider ?? form.provider
+    } catch { /* ignore */ }
+    localStorage.removeItem('ai-drama-regenerate')
   }
 })
 
-// 加载动画文案
-const loadingFormat = (percentage) => {
-  const texts = [
-    '正在思考中...',
-    '正在构思剧情...',
-    '正在设计人物...',
-    '正在编写对话...',
-    '正在完善细节...',
-    '即将完成...'
-  ]
-  const index = Math.floor((percentage / 100) * texts.length)
-  loadingText.value = texts[Math.min(index, texts.length - 1)]
-  return `${percentage}%`
+function startProgressAnimation() {
+  loadingProgress.value = 0
+  progressText.value = PROGRESS_TEXTS[0]
+  progressTimer = setInterval(() => {
+    if (loadingProgress.value < 88) {
+      loadingProgress.value = Math.min(88, loadingProgress.value + Math.random() * 8 + 2)
+      const idx = Math.floor((loadingProgress.value / 100) * PROGRESS_TEXTS.length)
+      progressText.value = PROGRESS_TEXTS[Math.min(idx, PROGRESS_TEXTS.length - 1)]
+    }
+  }, 600)
 }
 
-// 获取 API Key
-const getApiKey = () => {
-  const settings = localStorage.getItem('ai-drama-settings')
-  if (!settings) return null
-  
-  const parsed = JSON.parse(settings)
-  switch(form.provider) {
-    case 'dashscope':
-      return parsed.dashscopeApiKey
-    case 'ernie':
-      return parsed.ernieApiKey
-    case 'iflytek':
-      return parsed.iflytekApiKey
-    default:
-      return parsed.dashscopeApiKey
+function stopProgressAnimation(success = true) {
+  clearInterval(progressTimer)
+  progressTimer = null
+  if (success) {
+    loadingProgress.value = 100
+    progressText.value = '生成完成！'
   }
+  setTimeout(() => { loadingProgress.value = 0 }, 1200)
 }
 
-// 生成剧本
-const generateDrama = async () => {
-  // 重置状态
-  error.value = false
-  errors.theme = ''
-  errors.style = ''
-  
-  // 验证表单
-  if (!form.theme) {
-    errors.theme = '请输入剧本主题'
-    ElMessage.warning('请输入剧本主题')
-    return
-  }
-  
-  if (!form.style) {
-    errors.style = '请选择剧本风格'
-    ElMessage.warning('请选择剧本风格')
-    return
-  }
-  
-  // 获取 API Key
-  const apiKey = getApiKey()
+async function handleGenerate() {
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  const apiKey = settingsStore.getApiKey(form.provider)
   if (!apiKey) {
     ElMessage.warning('请先配置 API Key')
     return
   }
-  
+
+  errorMsg.value = ''
+  result.value   = null
+  isGenerating.value = true
+  startProgressAnimation()
+
   try {
-    isGenerating.value = true
-    loadingProgress.value = 0
-    
-    // 模拟加载进度
-    const progressInterval = setInterval(() => {
-      if (loadingProgress.value < 90) {
-        loadingProgress.value += Math.random() * 10
-      }
-    }, 500)
-    
-    // 创建生成器
     const generator = new DramaGenerator(apiKey)
-    
-    // 生成剧本
     const drama = await generator.generateDrama({
-      theme: form.theme,
-      style: form.style,
+      theme:    form.theme,
+      style:    form.style,
       episodes: form.episodes,
-      duration: form.duration
+      duration: form.duration,
     })
-    
-    clearInterval(progressInterval)
-    loadingProgress.value = 100
-    
+
+    stopProgressAnimation(true)
     result.value = drama
     ElMessage.success('剧本生成成功！')
-    
-    // 保存到历史记录
-    saveToHistory(drama)
+
+    historyStore.add({
+      ...drama,
+      theme:    form.theme,
+      style:    form.style,
+      episodes: form.episodes,
+      duration: form.duration,
+      provider: form.provider,
+    })
   } catch (err) {
-    error.value = true
-    errorTitle.value = '生成失败'
-    errorMessage.value = err.message
+    stopProgressAnimation(false)
+    errorMsg.value = err.message
     ElMessage.error(`生成失败：${err.message}`)
   } finally {
     isGenerating.value = false
-    setTimeout(() => {
-      loadingProgress.value = 0
-    }, 1000)
   }
 }
 
-// 重试生成
-const retryGenerate = () => {
-  error.value = false
-  generateDrama()
+async function copyResult() {
+  if (!result.value?.content) return
+  const ok = await copyToClipboard(result.value.content)
+  ok ? ElMessage.success('已复制到剪贴板') : ElMessage.error('复制失败，请手动选择复制')
 }
 
-// 复制结果
-const copyResult = () => {
-  if (result.value && result.value.content) {
-    navigator.clipboard.writeText(result.value.content)
-    ElMessage.success('已复制到剪贴板')
-  }
+function exportResult() {
+  if (!result.value) return
+  batchExport([{ ...result.value, theme: form.theme, style: form.style }], 'md')
+  ElMessage.success('导出成功')
 }
 
-// 保存到历史记录
-const saveToHistory = (dramaData) => {
-  const historyItem = {
-    ...dramaData,
-    theme: form.theme,
-    style: form.style,
-    episodes: form.episodes,
-    duration: form.duration,
-    provider: form.provider,
-    timestamp: new Date().toISOString()
-  }
-  
-  // 触发 storage 事件通知历史页面
-  localStorage.setItem('ai-drama-new-history', JSON.stringify(historyItem))
-  ElMessage.success('已保存到历史记录')
+function resetResult() {
+  result.value = null
+  errorMsg.value = ''
 }
 
-// 格式化时间
-const formatTime = (timestamp) => {
-  if (!timestamp) return ''
-  const date = new Date(timestamp)
-  return date.toLocaleString('zh-CN')
+function formatTime(ts) {
+  if (!ts) return ''
+  return new Date(ts).toLocaleString('zh-CN')
 }
 </script>
 
 <style scoped>
 .create {
-  padding: 20px;
-  max-width: 800px;
+  padding: 28px;
+  max-width: 820px;
   margin: 0 auto;
 }
 
@@ -354,7 +363,13 @@ const formatTime = (timestamp) => {
   color: #303133;
 }
 
-.create-card {
+.mb-20 {
+  margin-bottom: 20px;
+}
+
+.form-card,
+.progress-card,
+.result-card {
   margin-bottom: 20px;
 }
 
@@ -364,23 +379,15 @@ const formatTime = (timestamp) => {
   margin-left: 10px;
 }
 
-.loading-card {
-  margin-bottom: 20px;
-}
-
-.loading-content {
-  padding: 20px;
+.progress-content {
+  padding: 16px 0;
   text-align: center;
 }
 
-.loading-text {
-  margin-top: 15px;
+.progress-text {
+  margin-top: 14px;
   color: #606266;
   font-size: 14px;
-}
-
-.result-card {
-  margin-top: 20px;
 }
 
 .result-header {
@@ -391,27 +398,27 @@ const formatTime = (timestamp) => {
 
 .header-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
-.result-content {
+.result-body {
   background: #f5f7fa;
   padding: 20px;
-  border-radius: 5px;
-  max-height: 500px;
+  border-radius: 6px;
+  max-height: 520px;
   overflow-y: auto;
 }
 
-.result-content pre {
+.result-body pre {
   white-space: pre-wrap;
   word-wrap: break-word;
   font-family: 'Courier New', monospace;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
-.result-info {
-  margin-top: 15px;
+.result-meta {
+  margin-top: 14px;
   display: flex;
   gap: 10px;
   align-items: center;

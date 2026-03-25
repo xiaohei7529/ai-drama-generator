@@ -97,7 +97,7 @@ class DramaGenerator {
    */
   async testConnection() {
     try {
-      const result = await this.generateDrama({
+      await this.generateDrama({
         theme: '测试',
         episodes: 1,
         style: '都市',

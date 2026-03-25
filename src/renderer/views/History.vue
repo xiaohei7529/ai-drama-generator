@@ -1,250 +1,315 @@
 <template>
   <div class="history">
-    <h2>📜 历史记录</h2>
-    
-    <el-empty v-if="historyList.length === 0" description="暂无历史记录" />
-    
-    <template v-else>
-      <!-- 操作栏 -->
-      <div class="action-bar">
-        <el-button type="danger" size="small" @click="clearAll" :disabled="historyList.length === 0">
+    <div class="page-header">
+      <h2>📜 历史记录</h2>
+      <div
+        v-if="historyStore.items.length > 0"
+        class="header-actions"
+      >
+        <el-input
+          v-model="searchText"
+          placeholder="搜索主题..."
+          clearable
+          style="width: 200px"
+          size="small"
+        />
+        <el-button
+          size="small"
+          @click="exportAll"
+        >
+          导出全部
+        </el-button>
+        <el-button
+          size="small"
+          type="danger"
+          @click="confirmClearAll"
+        >
           清空全部
         </el-button>
-        <el-button size="small" @click="exportHistory">
-          导出记录
-        </el-button>
       </div>
-      
-      <!-- 历史记录列表 -->
-      <el-timeline>
-        <el-timeline-item 
-          v-for="(item, index) in historyList" 
-          :key="index"
-          :timestamp="item.timestamp"
-          placement="top"
-          size="large"
-        >
-          <el-card>
-            <div class="history-item">
-              <div class="header">
-                <el-tag :type="getTypeTag(item.provider)">{{ getProviderName(item.provider) }}</el-tag>
-                <span class="style">{{ item.style }}</span>
-              </div>
-              <h4>{{ item.theme }}</h4>
-              <div class="meta">
-                <span>{{ item.episodes }}集 × {{ item.duration }}分钟</span>
-                <span>{{ item.status === 'completed' ? '✅ 已完成' : '⏳ 生成中' }}</span>
-              </div>
-              <div class="actions">
-                <el-button size="small" @click="viewDetail(item)">查看详情</el-button>
-                <el-button size="small" type="primary" @click="regenerate(item)">重新生成</el-button>
-                <el-button size="small" type="danger" @click="deleteItem(index)">删除</el-button>
-              </div>
-            </div>
-          </el-card>
-        </el-timeline-item>
-      </el-timeline>
-    </template>
-    
+    </div>
+
+    <!-- 空状态 -->
+    <el-empty
+      v-if="historyStore.items.length === 0"
+      description="暂无历史记录，去创作第一个剧本吧！"
+    >
+      <el-button
+        type="primary"
+        @click="$router.push('/create')"
+      >
+        开始创作
+      </el-button>
+    </el-empty>
+
+    <!-- 过滤后无结果 -->
+    <el-empty
+      v-else-if="filteredItems.length === 0"
+      description="没有匹配的记录"
+    />
+
+    <!-- 历史记录列表 -->
+    <el-timeline v-else>
+      <el-timeline-item
+        v-for="(item, idx) in filteredItems"
+        :key="item.id ?? idx"
+        :timestamp="formatTime(item.savedAt ?? item.timestamp)"
+        placement="top"
+        size="large"
+      >
+        <el-card class="history-card">
+          <div class="item-header">
+            <el-tag
+              :type="providerTagType(item.provider)"
+              size="small"
+            >
+              {{ settingsStore.providerName(item.provider) }}
+            </el-tag>
+            <el-tag
+              type="info"
+              size="small"
+            >
+              {{ item.style }}
+            </el-tag>
+            <span class="item-title">{{ item.theme }}</span>
+          </div>
+          <div class="item-meta">
+            {{ item.episodes }}集 × {{ item.duration }}分钟
+          </div>
+          <div class="item-actions">
+            <el-button
+              size="small"
+              @click="openDetail(item)"
+            >
+              查看详情
+            </el-button>
+            <el-button
+              size="small"
+              type="primary"
+              @click="regenerate(item)"
+            >
+              重新生成
+            </el-button>
+            <el-button
+              size="small"
+              @click="exportSingle(item)"
+            >
+              导出
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              plain
+              @click="confirmDelete(idx)"
+            >
+              删除
+            </el-button>
+          </div>
+        </el-card>
+      </el-timeline-item>
+    </el-timeline>
+
     <!-- 详情对话框 -->
-    <el-dialog v-model="detailVisible" title="剧本详情" width="800px">
-      <div v-if="currentDetail" class="detail-content">
+    <el-dialog
+      v-model="detailVisible"
+      title="剧本详情"
+      width="800px"
+      top="5vh"
+    >
+      <div
+        v-if="currentDetail"
+        class="detail-header"
+      >
+        <el-tag
+          :type="providerTagType(currentDetail.provider)"
+          size="small"
+        >
+          {{ settingsStore.providerName(currentDetail.provider) }}
+        </el-tag>
+        <strong style="margin-left: 10px">{{ currentDetail.theme }}</strong>
+      </div>
+      <div
+        v-if="currentDetail"
+        class="detail-body"
+      >
         <pre>{{ currentDetail.content }}</pre>
       </div>
       <template #footer>
-        <el-button @click="copyDetail">复制内容</el-button>
-        <el-button @click="detailVisible = false">关闭</el-button>
+        <el-button @click="copyDetail">
+          复制内容
+        </el-button>
+        <el-button @click="detailVisible = false">
+          关闭
+        </el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useHistoryStore } from '../stores/index.js'
+import { useSettingsStore } from '../stores/index.js'
+import { batchExport, copyToClipboard } from '../utils/export.js'
 
-// 历史记录
-const historyList = ref([])
+const router        = useRouter()
+const historyStore  = useHistoryStore()
+const settingsStore = useSettingsStore()
+
+const searchText    = ref('')
 const detailVisible = ref(false)
 const currentDetail = ref(null)
 
-// 加载历史记录
 onMounted(() => {
-  loadHistory()
+  historyStore.load()
 })
 
-// 加载历史记录
-const loadHistory = () => {
-  const saved = localStorage.getItem('ai-drama-history')
-  if (saved) {
-    historyList.value = JSON.parse(saved)
-  }
+const filteredItems = computed(() => {
+  const q = searchText.value.trim().toLowerCase()
+  if (!q) return historyStore.items
+  return historyStore.items.filter((i) =>
+    (i.theme ?? '').toLowerCase().includes(q) ||
+    (i.style ?? '').toLowerCase().includes(q)
+  )
+})
+
+function providerTagType(provider) {
+  return { dashscope: 'primary', ernie: 'success', iflytek: 'warning' }[provider] ?? 'info'
 }
 
-// 保存历史记录
-const saveHistory = () => {
-  localStorage.setItem('ai-drama-history', JSON.stringify(historyList.value))
+function formatTime(ts) {
+  return ts ? new Date(ts).toLocaleString('zh-CN') : ''
 }
 
-// 获取提供商名称
-const getProviderName = (provider) => {
-  const names = {
-    dashscope: '通义千问',
-    ernie: '文心一言',
-    iflytek: '讯飞星火'
-  }
-  return names[provider] || provider
-}
-
-// 获取标签类型
-const getTypeTag = (provider) => {
-  const types = {
-    dashscope: 'primary',
-    ernie: 'success',
-    iflytek: 'warning'
-  }
-  return types[provider] || 'info'
-}
-
-// 查看详情
-const viewDetail = (item) => {
+function openDetail(item) {
   currentDetail.value = item
   detailVisible.value = true
 }
 
-// 复制详情
-const copyDetail = () => {
-  if (currentDetail.value && currentDetail.value.content) {
-    navigator.clipboard.writeText(currentDetail.value.content)
-    ElMessage.success('已复制到剪贴板')
-  }
+async function copyDetail() {
+  if (!currentDetail.value?.content) return
+  const ok = await copyToClipboard(currentDetail.value.content)
+  ok ? ElMessage.success('已复制到剪贴板') : ElMessage.error('复制失败')
 }
 
-// 重新生成
-const regenerate = (item) => {
-  // 跳转到创作页面并填充表单
+function regenerate(item) {
   localStorage.setItem('ai-drama-regenerate', JSON.stringify(item))
-  window.location.hash = '/create'
-  ElMessage.info('已跳转到创作页面')
+  router.push('/create')
 }
 
-// 删除单条
-const deleteItem = (index) => {
-  ElMessageBox.confirm('确定要删除这条历史记录吗？', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
-    historyList.value.splice(index, 1)
-    saveHistory()
-    ElMessage.success('删除成功')
-  })
+function exportSingle(item) {
+  batchExport([item], 'md')
 }
 
-// 清空全部
-const clearAll = () => {
-  ElMessageBox.confirm('确定要清空所有历史记录吗？此操作不可恢复！', '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'error'
-  }).then(() => {
-    historyList.value = []
-    saveHistory()
-    ElMessage.success('已清空所有历史记录')
-  })
-}
-
-// 导出历史记录
-const exportHistory = () => {
-  const content = historyList.value.map(item => 
-    `主题：${item.theme}\n风格：${item.style}\n集数：${item.episodes}\n时长：${item.duration}分钟\n提供商：${getProviderName(item.provider)}\n时间：${item.timestamp}\n\n${item.content}\n\n${'='.repeat(50)}\n\n`
-  ).join('')
-  
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `ai-drama-history-${new Date().toISOString().split('T')[0]}.txt`
-  a.click()
-  URL.revokeObjectURL(url)
+function exportAll() {
+  if (historyStore.items.length === 0) return
+  batchExport(historyStore.items, 'md')
   ElMessage.success('导出成功')
 }
 
-// 监听生成完成事件 (从创作页面)
-window.addEventListener('storage', (e) => {
-  if (e.key === 'ai-drama-new-history' && e.newValue) {
-    const newItem = JSON.parse(e.newValue)
-    historyList.value.unshift(newItem)
-    saveHistory()
-  }
-})
+async function confirmDelete(originalIdx) {
+  // filteredItems 中的 idx 不等于 store 里的 idx，需要找原始 id
+  const item = filteredItems.value[originalIdx]
+  const storeIdx = historyStore.items.findIndex((i) => i === item)
+  try {
+    await ElMessageBox.confirm('确定要删除这条历史记录吗？', '提示', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      confirmButtonClass: 'el-button--danger',
+    })
+    historyStore.remove(storeIdx)
+    ElMessage.success('删除成功')
+  } catch { /* 取消 */ }
+}
+
+async function confirmClearAll() {
+  try {
+    await ElMessageBox.confirm('确定要清空所有历史记录吗？此操作不可恢复！', '警告', {
+      type: 'error',
+      confirmButtonText: '清空',
+      confirmButtonClass: 'el-button--danger',
+    })
+    historyStore.clear()
+    ElMessage.success('已清空所有历史记录')
+  } catch { /* 取消 */ }
+}
 </script>
 
 <style scoped>
 .history {
-  padding: 20px;
-  max-width: 900px;
+  padding: 28px;
+  max-width: 920px;
   margin: 0 auto;
 }
 
-.history h2 {
-  margin-bottom: 20px;
-  color: #303133;
-}
-
-.action-bar {
-  margin-bottom: 20px;
+.page-header {
   display: flex;
-  gap: 10px;
-}
-
-.history-item {
-  padding: 10px 0;
-}
-
-.header {
-  display: flex;
-  gap: 10px;
+  justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.style {
-  font-size: 14px;
-  color: #606266;
+.page-header h2 {
+  color: #303133;
+  margin: 0;
 }
 
-.history-item h4 {
-  margin: 10px 0;
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.history-card { padding: 4px 0; }
+
+.item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.item-title {
+  font-size: 15px;
+  font-weight: 600;
   color: #303133;
 }
 
-.meta {
-  display: flex;
-  gap: 20px;
+.item-meta {
   font-size: 13px;
   color: #909399;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
 }
 
-.actions {
+.item-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.detail-content {
-  max-height: 500px;
-  overflow-y: auto;
+/* 详情对话框 */
+.detail-header {
+  margin-bottom: 12px;
+}
+
+.detail-body {
   background: #f5f7fa;
   padding: 20px;
-  border-radius: 5px;
+  border-radius: 6px;
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
-.detail-content pre {
+.detail-body pre {
   white-space: pre-wrap;
   word-wrap: break-word;
   font-family: 'Courier New', monospace;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 </style>

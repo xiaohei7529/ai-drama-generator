@@ -1,106 +1,177 @@
 <template>
   <div class="settings">
     <h2>⚙️ 设置</h2>
-    
-    <!-- AI 提供商配置 -->
+
     <el-card class="settings-card">
       <template #header>
-        <div class="card-header">
-          <span>🤖 AI 提供商配置</span>
-        </div>
+        <span>🤖 AI 提供商配置</span>
       </template>
-      
-      <el-form :model="settings" label-width="150px">
+
+      <el-form
+        v-loading="saving"
+        :model="form"
+        label-width="160px"
+      >
         <!-- 通义千问 -->
         <el-form-item label="通义千问 API Key">
-          <el-input 
-            v-model="settings.dashscopeApiKey" 
-            type="password"
-            placeholder="请输入通义千问 API Key"
-            show-password
-            clearable
-          />
-          <el-button type="primary" size="small" @click="testConnection('dashscope')">
-            测试连接
-          </el-button>
+          <div class="key-row">
+            <el-input
+              v-model="form.dashscopeApiKey"
+              type="password"
+              placeholder="sk-..."
+              show-password
+              clearable
+            />
+            <el-button
+              type="primary"
+              :loading="testing === 'dashscope'"
+              @click="testConnection('dashscope')"
+            >
+              测试
+            </el-button>
+          </div>
           <div class="help-text">
-            获取方式：访问 
-            <el-link type="primary" href="https://dashscope.console.aliyun.com/" target="_blank">
+            获取：
+            <el-link
+              type="primary"
+              href="https://dashscope.console.aliyun.com/"
+              target="_blank"
+            >
               阿里云 DashScope 控制台
             </el-link>
           </div>
         </el-form-item>
-        
+
         <!-- 文心一言 -->
         <el-form-item label="文心一言 API Key">
-          <el-input 
-            v-model="settings.ernieApiKey" 
-            type="password"
-            placeholder="请输入文心一言 API Key"
-            show-password
-            clearable
-          />
-          <el-button type="primary" size="small" @click="testConnection('ernie')">
-            测试连接
-          </el-button>
+          <div class="key-row">
+            <el-input
+              v-model="form.ernieApiKey"
+              type="password"
+              placeholder="请输入文心一言 API Key"
+              show-password
+              clearable
+            />
+            <el-button
+              type="primary"
+              :loading="testing === 'ernie'"
+              @click="testConnection('ernie')"
+            >
+              测试
+            </el-button>
+          </div>
           <div class="help-text">
-            获取方式：访问 
-            <el-link type="primary" href="https://cloud.baidu.com/product/wenxinworkshop" target="_blank">
+            获取：
+            <el-link
+              type="primary"
+              href="https://cloud.baidu.com/product/wenxinworkshop"
+              target="_blank"
+            >
               百度智能云控制台
             </el-link>
           </div>
         </el-form-item>
-        
+
         <!-- 讯飞星火 -->
         <el-form-item label="讯飞星火 API Key">
-          <el-input 
-            v-model="settings.iflytekApiKey" 
-            type="password"
-            placeholder="请输入讯飞星火 API Key"
-            show-password
-            clearable
-          />
-          <el-button type="primary" size="small" @click="testConnection('iflytek')">
-            测试连接
-          </el-button>
+          <div class="key-row">
+            <el-input
+              v-model="form.iflytekApiKey"
+              type="password"
+              placeholder="请输入讯飞星火 API Key"
+              show-password
+              clearable
+            />
+            <el-button
+              type="primary"
+              :loading="testing === 'iflytek'"
+              @click="testConnection('iflytek')"
+            >
+              测试
+            </el-button>
+          </div>
           <div class="help-text">
-            获取方式：访问 
-            <el-link type="primary" href="https://console.xfyun.cn/" target="_blank">
+            获取：
+            <el-link
+              type="primary"
+              href="https://console.xfyun.cn/"
+              target="_blank"
+            >
               讯飞开放平台
             </el-link>
           </div>
         </el-form-item>
-        
-        <!-- 默认 AI 提供商 -->
+
+        <!-- 默认提供商 -->
         <el-form-item label="默认 AI 提供商">
-          <el-select v-model="settings.defaultProvider" placeholder="请选择">
-            <el-option label="通义千问" value="dashscope" />
-            <el-option label="文心一言" value="ernie" />
-            <el-option label="讯飞星火" value="iflytek" />
+          <el-select
+            v-model="form.defaultProvider"
+            style="width: 200px"
+          >
+            <el-option
+              label="通义千问"
+              value="dashscope"
+            />
+            <el-option
+              label="文心一言"
+              value="ernie"
+            />
+            <el-option
+              label="讯飞星火"
+              value="iflytek"
+            />
           </el-select>
         </el-form-item>
-        
-        <!-- 保存按钮 -->
+
+        <!-- 操作按钮 -->
         <el-form-item>
-          <el-button type="primary" @click="saveSettings">保存配置</el-button>
-          <el-button @click="resetSettings">重置</el-button>
+          <el-button
+            type="primary"
+            :loading="saving"
+            @click="saveSettings"
+          >
+            保存配置
+          </el-button>
+          <el-button @click="resetSettings">
+            重置
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
-    
-    <!-- 测试连接结果 -->
-    <el-dialog v-model="testDialogVisible" title="连接测试" width="400px">
-      <div v-if="testResult" class="test-result">
-        <el-alert 
-          :title="testResult.success ? '连接成功！' : '连接失败'"
+
+    <!-- 存储安全说明 -->
+    <el-card class="info-card">
+      <template #header>
+        <span>🔒 安全说明</span>
+      </template>
+      <p>API Key 通过操作系统原生加密（Electron safeStorage）存储在本地，不会上传至任何服务器。</p>
+    </el-card>
+
+    <!-- 测试结果对话框 -->
+    <el-dialog
+      v-model="testDialogVisible"
+      title="连接测试结果"
+      width="420px"
+    >
+      <div class="test-result">
+        <el-alert
+          v-if="testResult"
+          :title="testResult.success ? '连接成功' : '连接失败'"
           :type="testResult.success ? 'success' : 'error'"
           :description="testResult.message"
           show-icon
           :closable="false"
         />
+        <el-skeleton
+          v-else
+          :rows="2"
+          animated
+        />
       </div>
       <template #footer>
-        <el-button @click="testDialogVisible = false">关闭</el-button>
+        <el-button @click="testDialogVisible = false">
+          关闭
+        </el-button>
       </template>
     </el-dialog>
   </div>
@@ -109,103 +180,94 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useSettingsStore } from '../stores/index.js'
 import DramaGenerator from '../../ai/drama-generator.js'
 
-// 设置数据
-const settings = reactive({
+const settingsStore = useSettingsStore()
+
+const form = reactive({
   dashscopeApiKey: '',
   ernieApiKey: '',
   iflytekApiKey: '',
-  defaultProvider: 'dashscope'
+  defaultProvider: 'dashscope',
 })
 
-// 测试对话框
+const saving = ref(false)
+const testing = ref('')
 const testDialogVisible = ref(false)
 const testResult = ref(null)
 
-// 加载设置
-onMounted(() => {
-  loadSettings()
+onMounted(async () => {
+  await settingsStore.load()
+  form.dashscopeApiKey = settingsStore.dashscopeApiKey
+  form.ernieApiKey     = settingsStore.ernieApiKey
+  form.iflytekApiKey   = settingsStore.iflytekApiKey
+  form.defaultProvider = settingsStore.defaultProvider
 })
 
-// 加载本地存储的设置
-const loadSettings = () => {
-  const saved = localStorage.getItem('ai-drama-settings')
-  if (saved) {
-    const parsed = JSON.parse(saved)
-    Object.assign(settings, parsed)
+async function saveSettings() {
+  saving.value = true
+  try {
+    const result = await settingsStore.save({ ...form })
+    if (result?.success === false) throw new Error(result.error)
+    ElMessage.success('配置已保存')
+  } catch (err) {
+    ElMessage.error(`保存失败：${err.message}`)
+  } finally {
+    saving.value = false
   }
 }
 
-// 保存设置
-const saveSettings = () => {
-  localStorage.setItem('ai-drama-settings', JSON.stringify(settings))
-  ElMessage.success('配置已保存！')
-}
-
-// 重置设置
-const resetSettings = () => {
-  settings.dashscopeApiKey = ''
-  settings.ernieApiKey = ''
-  settings.iflytekApiKey = ''
-  settings.defaultProvider = 'dashscope'
-  ElMessage.info('配置已重置')
-}
-
-// 测试连接
-const testConnection = async (provider) => {
-  testDialogVisible.value = true
-  testResult.value = null
-  
-  let apiKey = ''
-  let providerName = ''
-  
-  switch(provider) {
-    case 'dashscope':
-      apiKey = settings.dashscopeApiKey
-      providerName = '通义千问'
-      break
-    case 'ernie':
-      apiKey = settings.ernieApiKey
-      providerName = '文心一言'
-      break
-    case 'iflytek':
-      apiKey = settings.iflytekApiKey
-      providerName = '讯飞星火'
-      break
+async function resetSettings() {
+  try {
+    await settingsStore.reset()
+    form.dashscopeApiKey = ''
+    form.ernieApiKey     = ''
+    form.iflytekApiKey   = ''
+    form.defaultProvider = 'dashscope'
+    ElMessage.info('配置已重置')
+  } catch (err) {
+    ElMessage.error(`重置失败：${err.message}`)
   }
-  
+}
+
+async function testConnection(provider) {
+  const keyMap = {
+    dashscope: form.dashscopeApiKey,
+    ernie: form.ernieApiKey,
+    iflytek: form.iflytekApiKey,
+  }
+  const apiKey = keyMap[provider]
+
   if (!apiKey) {
-    testResult.value = {
-      success: false,
-      message: '请先输入 API Key'
-    }
+    ElMessage.warning('请先输入该提供商的 API Key')
     return
   }
-  
+
+  testing.value = provider
+  testDialogVisible.value = true
+  testResult.value = null
+
   try {
-    // 使用 DramaGenerator 测试连接
     const generator = new DramaGenerator(apiKey)
     const result = await generator.testConnection()
-    
     testResult.value = {
       success: result.success,
-      message: result.success 
-        ? `${providerName} API 连接正常` 
-        : `${providerName} API 连接失败：${result.message}`
+      message: result.success
+        ? `${settingsStore.providerName(provider)} API 连接正常`
+        : `连接失败：${result.message}`,
     }
-  } catch (error) {
-    testResult.value = {
-      success: false,
-      message: `测试失败：${error.message}`
-    }
+  } catch (err) {
+    testResult.value = { success: false, message: err.message }
+  } finally {
+    testing.value = ''
   }
 }
 </script>
 
 <style scoped>
 .settings {
-  padding: 20px;
+  padding: 28px;
   max-width: 800px;
   margin: 0 auto;
 }
@@ -215,23 +277,35 @@ const testConnection = async (provider) => {
   color: #303133;
 }
 
-.settings-card {
+.settings-card,
+.info-card {
   margin-bottom: 20px;
 }
 
-.card-header {
+.key-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.key-row .el-input {
+  flex: 1;
 }
 
 .help-text {
   font-size: 12px;
   color: #909399;
-  margin-top: 5px;
+  margin-top: 4px;
+}
+
+.info-card p {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.8;
 }
 
 .test-result {
-  padding: 20px;
+  padding: 10px 0;
+  min-height: 80px;
 }
 </style>

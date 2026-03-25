@@ -1,0 +1,50 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+release/
+build/
+
+# 输出文件
+outputs/
+
+# 环境变量（含密钥）
+.env
+.env.*
+!.env.example
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+npm-debug.log*
+
+# 测试覆盖率
+coverage/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+
+# 临时文件 / AI 生成报告（仅保留模板，不提交每日报告）
+reports/*
+
+
+# models（大文件）
+models/
+
+# lock 文件（可选，根据团队规范决定）
+# package-lock.json
